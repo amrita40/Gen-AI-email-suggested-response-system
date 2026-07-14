@@ -45,7 +45,7 @@ src/
   evaluator.py                # the 6-dimension scorer + improve-loop feedback
   pipeline.py                  # wires the above into the end-to-end workflow, writes a report
 demo/
-  live_pipeline_demo.html    # interactive, in-browser demo using real Claude calls
+  live_pipeline_demo.html    # interactive, in-browser demo 
 logs/
   run_report.csv              # output of the last pipeline run
 ```
