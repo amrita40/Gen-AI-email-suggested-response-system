@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GenAI Reply Assistant — Offline Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#101B2D; --navy-light:#1C2C46; --paper:#F6F1E4; --paper-dim:#EDE6D3;
+  --teal:#2F6F62; --teal-dark:#205046; --red:#A83232; --gold:#C9A227; --slate:#5B6472; --ink:#20242C;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--navy);font-family:'IBM Plex Sans',sans-serif;color:var(--paper);min-height:100vh;}
+.wrap{max-width:1180px;margin:0 auto;padding:26px 20px 60px;}
+h1{font-family:'Spectral',serif;font-weight:700;font-size:26px;margin:0 0 4px;}
+.kicker{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);}
+.sub{font-size:13px;color:#B9C2D0;max-width:640px;margin-top:6px;}
+
+.stages{display:flex;gap:6px;margin:20px 0;flex-wrap:wrap;}
+.stage{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.5px;text-transform:uppercase;
+  padding:7px 12px;border:1px solid #33456a;color:#8fa0ba;border-radius:2px;
+}
+.stage.active{border-color:var(--gold);color:var(--gold);background:rgba(201,162,39,.08);}
+.stage.done{border-color:var(--teal);color:#9fd8ca;}
+.stage.fail{border-color:var(--red);color:#e0a3a3;}
+.arrow{color:#3d4f74;font-family:'IBM Plex Mono',monospace;padding:7px 2px;}
+
+.runbar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+.btn{font-family:'IBM Plex Mono',monospace;font-size:12.5px;background:var(--teal);color:var(--paper);border:none;padding:9px 15px;border-radius:2px;cursor:pointer;text-transform:uppercase;}
+.btn:hover{background:var(--teal-dark);}
+.btn:disabled{opacity:.5;}
+.btn.ghost{background:transparent;border:1px solid var(--teal);color:#9fd8ca;}
+.progress{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#9fb0c4;}
+
+.layout{display:grid;grid-template-columns:270px 1fr;gap:18px;align-items:start;}
+@media (max-width:820px){.layout{grid-template-columns:1fr;}}
+.queue{background:var(--navy-light);border:1px solid #2b3c5c;border-radius:4px;overflow:hidden;}
+.queue-head{padding:9px 13px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold);border-bottom:1px solid #2b3c5c;}
+.ticket{padding:10px 13px;border-bottom:1px dashed #33456a;cursor:pointer;position:relative;}
+.ticket:hover{background:#223558;}
+.ticket.active{background:#223558;border-left:3px solid var(--gold);}
+.ticket .tid{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8fa0ba;}
+.ticket .tsub{font-size:12.5px;font-weight:500;}
+.ticket .tcat{font-size:10px;color:var(--gold);text-transform:uppercase;}
+.dot{width:7px;height:7px;border-radius:50%;position:absolute;right:11px;top:13px;background:#3d4f74;}
+.dot.pass{background:#5fb894;} .dot.fail{background:var(--red);} .dot.loading{background:var(--gold);animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+.card{background:var(--paper);color:var(--ink);border-radius:3px;padding:16px 18px;margin-bottom:14px;box-shadow:0 5px 16px rgba(0,0,0,.25);}
+.card h3{font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:1.4px;color:var(--slate);margin:0 0 9px;border-bottom:1px solid #ddd3ba;padding-bottom:7px;}
+.meta{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--slate);margin-bottom:7px;}
+.body-text{font-size:13.5px;line-height:1.55;white-space:pre-wrap;}
+.placeholder{color:#9a9482;font-style:italic;font-size:13px;}
+
+.attempt-block{border-left:3px solid #ddd3ba;padding-left:12px;margin-bottom:14px;}
+.attempt-block.passed{border-left-color:var(--teal);}
+.attempt-block.failed{border-left-color:var(--red);}
+.attempt-tag{font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;color:var(--slate);margin-bottom:5px;}
+
+.grid6{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-top:8px;}
+.metric-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--slate);display:flex;justify-content:space-between;}
+.bar-track{background:#e4dcc4;height:6px;border-radius:4px;overflow:hidden;margin-top:2px;}
+.bar-fill{height:100%;background:var(--teal);}
+.bar-fill.warn{background:var(--red);}
+.feedback{font-size:12px;color:#4a4638;margin-top:8px;background:#f3ead0;border-radius:3px;padding:8px 10px;}
+
+.finalscore{display:inline-flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;}
+.finalscore .n{font-family:'Spectral',serif;font-size:22px;font-weight:700;}
+.pass-pill{font-size:10.5px;padding:2px 8px;border-radius:10px;text-transform:uppercase;}
+.pass-pill.pass{background:#dcebe5;color:var(--teal-dark);}
+.pass-pill.fail{background:#f3d9d9;color:var(--red);}
+
+.foot-note{font-size:11px;color:#7d8aa1;margin-top:24px;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  
+  <h1>GenAI Support Reply Assistant — Pipeline in Action</h1>
+  <div class="sub">Intent detection → mock reply generation (same corruption harness as src/response_generator.py's offline mode) → six-dimension evaluator scores it → below-threshold replies get one targeted repair pass. 16 real emails sampled from the 460-email dataset. Runs entirely in your browser, no server or API key required — for a version that calls the real Claude API, see live_pipeline_demo.html.</div>
+
+  <div class="stages" id="stages"></div>
+
+  <div class="runbar">
+    <button class="btn" id="runBtn" onclick="runAll()">Run pipeline on all 16</button>
+    <button class="btn ghost" onclick="resetAll()">Reset</button>
+    <span class="progress" id="progressText"></span>
+  </div>
+
+  <div class="layout">
+    <div class="queue">
+      <div class="queue-head">Ticket Queue</div>
+      <div id="ticketList"></div>
+    </div>
+    <div id="deskPanel"></div>
+  </div>
+
+  <div class="card" style="margin-top:22px;">
+    <h3>Try Your Own Ticket — Grade a Custom Reply (fully offline)</h3>
+    <div class="body-text" style="font-size:12.5px;color:var(--slate);margin-bottom:12px;">
+      This demo can't have an AI write a fresh reply offline (see note below) — but it can grade
+      any reply you already have, using the exact same 6-dimension scorer as the rest of this
+      project. Paste a customer email, list what a good reply should cover, paste a candidate
+      reply (write it yourself, or copy one from a Claude.ai chat), and score it.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div>
+        <label style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;color:var(--slate);">Customer email</label><br>
+        <textarea id="customEmail" rows="5" style="width:100%;margin-top:5px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:8px;border:1px solid #ddd3ba;border-radius:3px;" placeholder="Subject: ...&#10;&#10;Hi, my order never arrived..."></textarea>
+        <label style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;color:var(--slate);display:block;margin-top:10px;">Customer's tone</label>
+        <select id="customTone" style="margin-top:5px;padding:6px;border-radius:3px;border:1px solid #ddd3ba;">
+          <option value="neutral">Neutral</option>
+          <option value="frustrated">Frustrated</option>
+          <option value="polite">Polite</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;color:var(--slate);">Checklist — one required point per line</label><br>
+        <textarea id="customChecklist" rows="5" style="width:100%;margin-top:5px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:8px;border:1px solid #ddd3ba;border-radius:3px;" placeholder="apologizes for the delay&#10;references order ORD-1234&#10;gives a delivery estimate"></textarea>
+        <label style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;color:var(--slate);display:block;margin-top:10px;">Candidate reply to grade</label>
+        <textarea id="customReply" rows="4" style="width:100%;margin-top:5px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:8px;border:1px solid #ddd3ba;border-radius:3px;" placeholder="Paste the AI-drafted or human-written reply here..."></textarea>
+      </div>
+    </div>
+    <button class="btn" style="margin-top:12px;" onclick="scoreCustomTicket()">Score this reply</button>
+    <div id="customResult" style="margin-top:14px;"></div>
+  </div>
+
+  <div class="foot-note">
+    Same rubric as the offline evaluator.py: correctness (25%), completeness (20%), hallucination-freedom (20%), empathy (15%), tone (10%), grammar (10%). Composite pass threshold: 68/100, calibrated against the dataset's gold responses.
+    <br><br>
+    Why this demo can't <i>generate</i> a fresh reply for a brand-new email offline: the 16
+    preloaded tickets work by starting from a hand-written ideal answer and deliberately
+    introducing a realistic mistake for the scorer to catch — there's no such ideal answer for
+    an email you just typed, and writing one well requires an actual language model. For that,
+    either view this project inside Claude.ai (no key needed there), run <code>demo/proxy_server.py</code>
+    with your own API key, or run <code>src/pipeline.py --mode live</code> directly.
+  </div>
+</div>
+
+<script id="dataset-json" type="application/json">
+[{"email_id":"E0128","category":"Refund","tone":"polite","customer_email":"Subject: Want a refund - changed my mind\n\nHope you're doing well!\n\nI ordered a monitor arm (order ORD-42493) but changed my mind. Can I get a refund? It's still unopened.\n\nReally appreciate your help!","gold_response":"Of course, Ivy Diallo — since it's unopened we can process a full refund for order ORD-42493. Please ship it back within 30 days using the prepaid label in your account, and the $106.0 refund will be issued once we receive it.","evaluation_checklist":["confirms refund is possible for unopened item","references order ORD-42493","mentions 30-day return window","explains refund issued after item received","references $106.0"]},
+{"email_id":"E0298","category":"Refund","tone":"polite","customer_email":"Subject: Want a refund - changed my mind\n\nHope you're doing well!\n\nI ordered a blender (order ORD-62296) but changed my mind. Can I get a refund? It's still unopened.\n\nReally appreciate your help!","gold_response":"Of course, Aisha Chen — since it's unopened we can process a full refund for order ORD-62296. Please ship it back within 30 days using the prepaid label in your account, and the $418.04 refund will be issued once we receive it.","evaluation_checklist":["confirms refund is possible for unopened item","references order ORD-62296","mentions 30-day return window","explains refund issued after item received","references $418.04"]},
+{"email_id":"E0248","category":"Technical Bug","tone":"polite","customer_email":"Subject: Export feature is broken\n\nHope you're doing well!\n\nEvery time I export my report to CSV it downloads with 0 rows, even though the dashboard shows data.\n\nReally appreciate your help!","gold_response":"Good catch, Mei Kowalski — this is a known issue where a custom date range crossing a timezone boundary can return an empty CSV. As a workaround, try the 'Last 30 days' preset instead of a custom range; our team has a permanent fix in QA.","evaluation_checklist":["names the likely cause (timezone/date range)","gives a workaround","mentions a fix is in progress","does not overpromise a fix date"]},
+{"email_id":"E0075","category":"Technical Bug","tone":"polite","customer_email":"Subject: App keeps crashing on monitor arm page\n\nHope you're doing well!\n\nThe app crashes every time I open the page for my monitor arm order, ORD-52987. I've tried reinstalling.\n\nReally appreciate your help!","gold_response":"Sorry for the disruption, Ravi Tan. I don't have a documented root cause for this specific crash yet, so rather than guess, I've logged it with engineering as a priority bug referencing order ORD-52987 and will follow up with a timeline as soon as I have one.","evaluation_checklist":["apologizes without guessing at unverified causes","references order ORD-52987","confirms it's logged with engineering","commits to a follow-up"]},
+{"email_id":"E0126","category":"Login","tone":"neutral","customer_email":"Subject: Two-factor code never arrives\n\nHi team,\n\nThe 2FA text message never arrives when I try to log in, I've tried five times today.\n\nThanks,","gold_response":"Sorry about that, Maria Chen — SMS 2FA codes can be delayed by carrier filtering. Try the 'resend as call' option, or switch to an authenticator app under Security Settings, which is instant and more reliable going forward.","evaluation_checklist":["offers an immediate alternative (resend as call)","offers a longer-term fix (authenticator app)","acknowledges the repeated failed attempts"]},
+{"email_id":"E0452","category":"Login","tone":"frustrated","customer_email":"Subject: Can't log into my account\n\nThis is honestly frustrating.\n\nI keep getting 'invalid password' even after resetting it three times. Please help, I'm locked out.\n\nPlease fix this soon.","gold_response":"Sorry for the trouble, Maria Singh — this usually happens when an old session is cached. Please clear your browser cache or try a private/incognito window, then use the 'Forgot password' link once more; if it still fails, I can manually trigger a password reset from our side within the hour.","evaluation_checklist":["offers a concrete troubleshooting step (cache/incognito)","offers a fallback (manual reset)","gives a timeframe","acknowledges the frustration of being locked out"]},
+{"email_id":"E0284","category":"Billing","tone":"neutral","customer_email":"Subject: Charged twice for the same order\n\nHi team,\n\nI was charged $399.59 twice for order ORD-14067 this month. Please refund the duplicate charge.\n\nThanks,","gold_response":"Sorry about that, Dana Nair — I can confirm order ORD-14067 shows two charges of $399.59. I've reversed the duplicate charge; it will reflect on your statement within 3-5 business days, and the original charge remains as normal.","evaluation_checklist":["confirms the duplicate charge was found","references order ORD-14067 and amount $399.59","gives a timeframe for the reversal","clarifies the original charge is unaffected"]},
+{"email_id":"E0245","category":"Billing","tone":"frustrated","customer_email":"Subject: Question about my last invoice\n\nThis is honestly frustrating.\n\nCould you send me a copy of my most recent invoice for order ORD-76469? I need it for expense reporting.\n\nPlease fix this soon.","gold_response":"Happy to help, Renee Chen — you can download the invoice for order ORD-76469 anytime from Billing > Invoices in your account, and I've also attached a PDF copy here for your records.","evaluation_checklist":["confirms invoice can be self-served from account","references order ORD-76469","offers to attach/send a copy"]},
+{"email_id":"E0421","category":"Cancellation","tone":"polite","customer_email":"Subject: Please cancel and refund order ORD-74044\n\nHope you're doing well!\n\nI want to cancel order ORD-74044 entirely and get the $406.44 refunded, it hasn't shipped yet.\n\nReally appreciate your help!","gold_response":"Done, Maria Chen — since order ORD-74044 hasn't shipped yet I've cancelled it and started a refund of $406.44, which will post to your original payment method within 5-7 business days.","evaluation_checklist":["confirms cancellation since not yet shipped","references order ORD-74044 and amount $406.44","gives refund timeframe"]},
+{"email_id":"E0038","category":"Cancellation","tone":"frustrated","customer_email":"Subject: Please cancel and refund order ORD-52154\n\nThis is honestly frustrating.\n\nI want to cancel order ORD-52154 entirely and get the $329.08 refunded, it hasn't shipped yet.\n\nPlease fix this soon.","gold_response":"Done, Leo Novak — since order ORD-52154 hasn't shipped yet I've cancelled it and started a refund of $329.08, which will post to your original payment method within 5-7 business days.","evaluation_checklist":["confirms cancellation since not yet shipped","references order ORD-52154 and amount $329.08","gives refund timeframe"]},
+{"email_id":"E0343","category":"Product Feedback","tone":"neutral","customer_email":"Subject: Really happy with the noise-cancelling headphones\n\nHi team,\n\nJust wanted to say the noise-cancelling headphones we bought has saved our small team hours every week. Great product!\n\nThanks,","gold_response":"Thank you so much for writing in, Dana Haddad — really glad the noise-cancelling headphones is pulling its weight for your team. I'll pass this along, the team loves hearing this kind of thing!","evaluation_checklist":["thanks the customer specifically","references the noise-cancelling headphones","offers to pass feedback along"]},
+{"email_id":"E0006","category":"Product Feedback","tone":"neutral","customer_email":"Subject: Feature request: dark mode\n\nHi team,\n\nAny timeline on a dark mode? Staring at a bright screen all day is rough.\n\nThanks,","gold_response":"Ha, you're not the first to ask, Ravi Nair! Dark mode is a frequently requested item in our backlog, though there's no committed release date yet. I'll add your vote to the request.","evaluation_checklist":["acknowledges it's a known/frequent request","is honest that there's no committed date","confirms the request will be logged"]},
+{"email_id":"E0434","category":"General Inquiry","tone":"polite","customer_email":"Subject: Compliance documentation needed\n\nHope you're doing well!\n\nOur security team needs SOC2 and GDPR documentation, including a DPA, before we can move forward.\n\nReally appreciate your help!","gold_response":"Happy to help, Noah Oliveira — we're SOC 2 Type II certified with an annual audit and GDPR compliant; a signed DPA is available on request. I'll loop in our sales team who handle full security questionnaires directly.","evaluation_checklist":["confirms SOC2 and GDPR status","mentions DPA availability","routes to the right team for a full questionnaire"]},
+{"email_id":"E0398","category":"General Inquiry","tone":"frustrated","customer_email":"Subject: Do you integrate with Slack?\n\nThis is honestly frustrating.\n\nBefore we roll this out further — can we get notified in Slack when something needs attention?\n\nPlease fix this soon.","gold_response":"Yes, Dana Novak — there's a native Slack integration that can post to a channel for new or overdue items. An admin can turn it on from Settings > Integrations; happy to help with setup if useful.","evaluation_checklist":["confirms the integration exists","gives the self-serve location","offers further help"]},
+{"email_id":"E0241","category":"Shipping","tone":"neutral","customer_email":"Subject: Wrong item delivered\n\nHi team,\n\nI ordered a coffee grinder but received a completely different item in order ORD-89482. This needs fixing fast.\n\nThanks,","gold_response":"I'm really sorry for the mix-up, Jonas Nair. I'm shipping out the correct coffee grinder today at no extra cost for order ORD-89482, with expedited delivery, and you can keep or donate the item you received — no need to return it.","evaluation_checklist":["apologizes for the wrong item","confirms replacement is being sent at no cost","references order ORD-89482","clarifies no return needed"]},
+{"email_id":"E0146","category":"Shipping","tone":"neutral","customer_email":"Subject: Wrong item delivered\n\nHi team,\n\nI ordered a standing desk but received a completely different item in order ORD-40947. This needs fixing fast.\n\nThanks,","gold_response":"I'm really sorry for the mix-up, Ivy Reyes. I'm shipping out the correct standing desk today at no extra cost for order ORD-40947, with expedited delivery, and you can keep or donate the item you received — no need to return it.","evaluation_checklist":["apologizes for the wrong item","confirms replacement is being sent at no cost","references order ORD-40947","clarifies no return needed"]}]
+</script>
+
+<script>
+const EMAILS = JSON.parse(document.getElementById('dataset-json').textContent);
+const state = {}; EMAILS.forEach(e=>state[e.email_id]={status:'idle'});
+let activeId = EMAILS[0].email_id;
+const STAGE_NAMES = ['Intent Detection','LLM Generation','Evaluation','Threshold Gate','Improve + Re-evaluate','Final Reply'];
+const THRESHOLD = 68;
+const WEIGHTS = {correctness:.25, completeness:.20, hallucination:.20, empathy:.15, tone:.10, grammar:.10};
+const STOP = new Set('the a an and or to of in on for is are it this that with we you your our be as at by from can will not have has if so'.split(' '));
+const META = new Set('confirms confirm mentions mention explains explain references reference gives give offers offer acknowledges acknowledge states state describes describe routes route commits commit clarifies clarify apologizes apologize apologises does avoids avoid without'.split(' '));
+const EMPATHY_MARKERS = ["sorry","understand","apolog","appreciate","thanks for","thank you","frustrat","i hear you","glad","happy to help","of course","great question","no problem","thanks so much","welcome"];
+const CASUAL_MARKERS = ["lol","my bad","cheers!!","gonna","yeah","kinda","!!!"];
+
+/* ---------------- lightweight client-side intent detector ---------------- */
+// Keyword-weighted matcher approximating the offline TF-IDF/SVM classifier
+// (trained server-side in src/intent_detector.py); good enough to visualize
+// the "Intent Detection" pipeline stage without shipping a model to the browser.
+const CATEGORY_KEYWORDS = {
+  'Refund':['refund','unopened','changed my mind','money back'],
+  'Billing':['invoice','charged','charge','billing','duplicate'],
+  'Shipping':['delivered','wrong item','tracking','ship','arrived'],
+  'Login':['log in','login','password','2fa','locked out','sso'],
+  'Technical Bug':['crash','export','csv','bug','broken','0 rows'],
+  'Cancellation':['cancel','cancelled','cancelling'],
+  'General Inquiry':['slack','soc2','gdpr','integrate','pricing','compliance'],
+  'Product Feedback':['dark mode','feature request','saved our','great product'],
+};
+function detectIntent(text){
+  const t = text.toLowerCase();
+  const scores = {};
+  Object.keys(CATEGORY_KEYWORDS).forEach(cat=>{
+    scores[cat] = CATEGORY_KEYWORDS[cat].reduce((s,k)=> s + (t.includes(k)?1:0), 0);
+  });
+  const ranked = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  const top = ranked[0], second = ranked[1];
+  const conf = top[1]===0 ? 0.4 : Math.min(0.97, 0.55 + 0.15*(top[1]-(second?second[1]:0)));
+  return {category: top[1]>0?top[0]:'General Inquiry', confidence: Math.round(conf*100)/100};
+}
+
+/* ---------------- JS port of evaluator.py ---------------- */
+function tokenizePhrase(phrase){
+  const raw = phrase.toLowerCase().match(/\$\d+(?:\.\d+)?|ord-\d+|[a-z0-9%]+/g) || [];
+  return raw.filter(w=>!STOP.has(w) && !META.has(w));
+}
+function fuzzyContains(replyLower, phrase){
+  const words = tokenizePhrase(phrase);
+  if(words.length===0) return false;
+  let hits=0; words.forEach(w=>{ if(replyLower.includes(w)) hits++; });
+  return (hits/words.length) >= 0.4;
+}
+function scoreCompleteness(reply, checklist){
+  const rl = reply.toLowerCase();
+  const missing=[]; let covered=0;
+  checklist.forEach(c=>{ if(fuzzyContains(rl,c)) covered++; else missing.push(c); });
+  return {pct: Math.round(100*covered/checklist.length), missing};
+}
+function scoreHallucination(reply, email, checklist){
+  const ctx = (email+' '+checklist.join(' ')).toLowerCase();
+  const entityRe = /\$\d+(?:\.\d+)?|ord-\d+|#\d+/g;
+  const replyEnts = new Set((reply.toLowerCase().match(entityRe)||[]));
+  const ctxEnts = new Set((ctx.match(entityRe)||[]));
+  const hallucinated = [...replyEnts].filter(e=>!ctxEnts.has(e));
+  if(replyEnts.size===0) return {score:100, hallucinated:[]};
+  const penalty = 100/Math.max(1,replyEnts.size);
+  return {score: Math.max(0, Math.round(100 - penalty*hallucinated.length)), hallucinated};
+}
+function scoreEmpathy(reply, tone){
+  const rl = reply.toLowerCase();
+  const hits = EMPATHY_MARKERS.reduce((s,m)=> s+(rl.includes(m)?1:0),0);
+  let base = Math.min(100, hits*35);
+  if(tone==='frustrated' && hits===0) base = Math.max(0, base-30);
+  return base;
+}
+function scoreTone(reply){
+  const rl = reply.toLowerCase();
+  const casual = CASUAL_MARKERS.reduce((s,m)=> s+(rl.includes(m)?1:0),0);
+  const shouty = /[A-Z]{4,}/.test(reply);
+  return Math.max(0, 100 - casual*30 - (shouty?15:0));
+}
+function scoreGrammar(reply){
+  const sentences = reply.split(/(?<=[.!?])\s+/).map(s=>s.trim()).filter(Boolean);
+  if(sentences.length===0) return 0;
+  let penalties=0;
+  sentences.forEach(s=>{
+    if(s && s[0] !== s[0].toUpperCase()) penalties++;
+    if(!/[.!?]$/.test(s)) penalties++;
+    if(s.includes('  ')) penalties++;
+    const words = s.split(/\s+/);
+    if(words.length>45) penalties++;
+    for(let i=0;i<words.length-1;i++){ if(words[i].toLowerCase()===words[i+1].toLowerCase()) penalties++; }
+  });
+  return Math.max(0, 100 - penalties*12);
+}
+function evaluateReply(reply, email){
+  const comp = scoreCompleteness(reply, email.evaluation_checklist);
+  const hall = scoreHallucination(reply, email.customer_email, email.evaluation_checklist);
+  const correctness = Math.max(0, comp.pct - 15*hall.hallucinated.length);
+  const empathy = scoreEmpathy(reply, email.tone);
+  const tone = scoreTone(reply);
+  const grammar = scoreGrammar(reply);
+  const scores = {correctness, completeness:comp.pct, hallucination:hall.score, empathy, tone, grammar};
+  const composite = Math.round(Object.keys(WEIGHTS).reduce((s,k)=> s+scores[k]*WEIGHTS[k],0));
+  return {scores, composite, passed: composite>=THRESHOLD, missing: comp.missing, hallucinated: hall.hallucinated};
+}
+function feedbackFromScorecard(sc){
+  const lines=[];
+  if(sc.missing.length) lines.push('Missing required points: '+sc.missing.join('; '));
+  if(sc.hallucinated.length) lines.push('Remove unverified figures not present in the source email: '+sc.hallucinated.join(', '));
+  if(sc.scores.empathy<50) lines.push("Add a genuine acknowledgement/apology appropriate to the customer's tone.");
+  if(sc.scores.tone<70) lines.push('Rewrite in a professional tone; remove slang/casual phrasing.');
+  if(sc.scores.grammar<70) lines.push('Fix sentence structure/punctuation issues.');
+  return lines.length? lines.join('\n') : 'Minor polish needed.';
+}
+
+/* ---------------- OFFLINE mock generator ----------------
+   No API calls, no key, no server -- works by just opening this file.
+   This is a JS port of src/response_generator.py's mock mode: it starts
+   from the record's gold (ideal) response and, unless this is a repair
+   pass, applies one of several realistic failure modes so the evaluator
+   below has genuine errors to catch (dropped empathy, a hallucinated
+   number, casual tone, or a missing detail). A repair pass (i.e. this is
+   attempt 2, after QA feedback) reconstructs the clean version -- standing
+   in for "the model successfully incorporated the feedback." */
+function hashStr(s){
+  let h = 0;
+  for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) | 0; }
+  return Math.abs(h);
+}
+function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+async function generateReply(email, feedback, attemptNum){
+  await wait(500 + Math.random()*500); // simulate generation latency for the UI
+
+  if(feedback){
+    return email.gold_response; // repair pass: reconstructs the clean reply
+  }
+
+  const corruptions = ['none','drop_empathy','swap_entity','casualize','drop_detail'];
+  const corruption = corruptions[hashStr(email.email_id) % corruptions.length];
+  let draft = email.gold_response;
+
+  if(corruption === 'drop_empathy'){
+    draft = draft.replace(/^(I'm sorry[^,]*,|Sorry [^,]*,|I'm really sorry[^.]*\.)\s*/, '');
+  } else if(corruption === 'swap_entity'){
+    draft = draft.replace(/\$\d+(\.\d+)?/, '$999.00');
+    draft = draft.replace(/ORD-\d+/, 'ORD-00000');
+  } else if(corruption === 'casualize'){
+    draft = draft.replace("I'm sorry", 'my bad').replace('Best,', 'cheers!!') + ' lol';
+  } else if(corruption === 'drop_detail'){
+    const parts = draft.split('. ');
+    if(parts.length > 2) parts.splice(1, 1);
+    draft = parts.join('. ');
+  }
+  return draft;
+}
+
+/* ---------------- run + render ---------------- */
+async function runOne(id){
+  const email = EMAILS.find(e=>e.email_id===id);
+  state[id] = {status:'loading', stage:0};
+  renderQueue(); if(activeId===id) renderDesk();
+  try{
+    state[id].stage=1; if(activeId===id) renderDesk();
+    const intent = detectIntent(email.customer_email);
+    state[id].intent = intent;
+
+    state[id].stage=2; if(activeId===id) renderDesk();
+    let reply = await generateReply(email, null);
+    let sc = evaluateReply(reply, email);
+    const attempts = [{n:1, reply, sc}];
+
+    state[id].stage=3; if(activeId===id) renderDesk();
+    let tries=1;
+    while(!sc.passed && tries<2){
+      state[id].stage=4; if(activeId===id) renderDesk();
+      const feedback = feedbackFromScorecard(sc);
+      reply = await generateReply(email, feedback);
+      sc = evaluateReply(reply, email);
+      tries++;
+      attempts.push({n:tries, reply, sc, feedback});
+    }
+    state[id] = {status:'done', intent, attempts, finalReply:reply, finalSc:sc, stage:5};
+  }catch(err){
+    state[id] = {status:'error', error:String(err)};
+  }
+  renderQueue(); if(activeId===id) renderDesk();
+}
+
+async function runAll(){
+  document.getElementById('runBtn').disabled = true;
+  for(let i=0;i<EMAILS.length;i++){
+    document.getElementById('progressText').textContent = `Processing ${i+1} / ${EMAILS.length}…`;
+    await runOne(EMAILS[i].email_id);
+  }
+  document.getElementById('progressText').textContent = 'Done — 16/16 processed.';
+  document.getElementById('runBtn').disabled = false;
+}
+function resetAll(){
+  EMAILS.forEach(e=>state[e.email_id]={status:'idle'});
+  document.getElementById('progressText').textContent='';
+  renderQueue(); renderDesk(); renderStages(0);
+}
+
+function selectTicket(id){ activeId=id; renderQueue(); renderDesk(); }
+
+function renderStages(activeStage, failed){
+  const el = document.getElementById('stages');
+  el.innerHTML = STAGE_NAMES.map((s,i)=>{
+    const n=i+1;
+    let cls='stage';
+    if(activeStage===n) cls+= failed? ' fail':' active';
+    else if(activeStage>n) cls+=' done';
+    return `<div class="${cls}">${n}. ${s}</div>` + (i<STAGE_NAMES.length-1?'<div class="arrow">→</div>':'');
+  }).join('');
+}
+
+function renderQueue(){
+  document.getElementById('ticketList').innerHTML = EMAILS.map(e=>{
+    const s = state[e.email_id];
+    let dot='ungraded';
+    if(s.status==='loading') dot='loading';
+    else if(s.status==='done') dot = s.finalSc.passed ? 'pass':'fail';
+    return `<div class="ticket ${e.email_id===activeId?'active':''}" onclick="selectTicket('${e.email_id}')">
+      <div class="dot ${dot}"></div>
+      <div class="tid">${e.email_id}</div>
+      <div class="tsub">${e.customer_email.split('\n')[0].replace('Subject: ','')}</div>
+      <div class="tcat">${e.category}</div>
+    </div>`;
+  }).join('');
+}
+
+function metricBar(label, pct){
+  pct = Math.max(0, Math.min(100, pct));
+  const warn = pct<50 ? ' warn':'';
+  return `<div><div class="metric-label"><span>${label}</span><span>${pct}</span></div><div class="bar-track"><div class="bar-fill${warn}" style="width:${pct}%"></div></div></div>`;
+}
+
+function renderDesk(){
+  const e = EMAILS.find(x=>x.email_id===activeId);
+  const s = state[e.email_id];
+  renderStages(s.stage||0, s.status==='error');
+  let html = '';
+
+  html += `<div class="card"><h3>Customer Email — ${e.email_id}</h3>
+    <div class="meta">Category (true label): ${e.category} · Tone: ${e.tone}</div>
+    <div class="body-text">${e.customer_email.replace(/</g,'&lt;')}</div></div>`;
+
+  if(s.status==='idle'){
+    html += `<div class="card"><div class="placeholder">Not run yet.</div><div style="margin-top:10px;"><button class="btn" onclick="runOne('${e.email_id}')">Run this ticket</button></div></div>`;
+    document.getElementById('deskPanel').innerHTML = html; return;
+  }
+  if(s.status==='error'){
+    html += `<div class="card"><div class="placeholder">Error: ${s.error}</div><button class="btn" onclick="runOne('${e.email_id}')">Retry</button></div>`;
+    document.getElementById('deskPanel').innerHTML = html; return;
+  }
+  if(s.intent){
+    const pass = s.intent.category===e.category;
+    html += `<div class="card"><h3>Stage 1 — Intent Detection</h3>
+      <div class="body-text">Predicted: <b>${s.intent.category}</b> (confidence ${(s.intent.confidence*100).toFixed(0)}%) ${pass?'✅ matches true label':'⚠ mismatch vs true label '+e.category}</div></div>`;
+  }
+  if(s.status==='loading'){
+    html += `<div class="card"><h3>Stage 2 — Generation</h3><div class="placeholder">Generating draft (offline mock mode)…</div></div>`;
+    document.getElementById('deskPanel').innerHTML = html; return;
+  }
+
+  (s.attempts||[]).forEach(a=>{
+    const passed = a.sc.passed;
+    html += `<div class="card"><h3>Attempt ${a.n}${a.n>1?' (after improve-loop feedback)':''}</h3>`;
+    if(a.n>1){
+      html += `<div class="feedback"><b>QA feedback fed back to the generator:</b><br>${(s.attempts[a.n-2].sc ? feedbackFromScorecard(s.attempts[a.n-2].sc) : '').replace(/\n/g,'<br>')}</div>`;
+    }
+    html += `<div class="body-text" style="margin-top:8px;">${a.reply.replace(/</g,'&lt;')}</div>`;
+    html += `<div style="margin-top:10px;" class="finalscore"><span class="n">${a.sc.composite}</span>/100
+      <span class="pass-pill ${passed?'pass':'fail'}">${passed?'PASSED':'BELOW THRESHOLD'}</span></div>`;
+    html += `<div class="grid6">
+      ${metricBar('Correctness', a.sc.scores.correctness)}
+      ${metricBar('Completeness', a.sc.scores.completeness)}
+      ${metricBar('Hallucination-free', a.sc.scores.hallucination)}
+      ${metricBar('Empathy', a.sc.scores.empathy)}
+      ${metricBar('Tone', a.sc.scores.tone)}
+      ${metricBar('Grammar', a.sc.scores.grammar)}
+    </div>`;
+    if(a.sc.missing.length) html += `<div class="feedback"><b>Missing checklist items:</b> ${a.sc.missing.join('; ')}</div>`;
+    if(a.sc.hallucinated.length) html += `<div class="feedback">⚠ <b>Hallucinated entities:</b> ${a.sc.hallucinated.join(', ')}</div>`;
+    html += `</div>`;
+  });
+
+  html += `<div class="card"><h3>Ground Truth (for comparison)</h3><div class="body-text">${e.gold_response.replace(/</g,'&lt;')}</div></div>`;
+
+  document.getElementById('deskPanel').innerHTML = html;
+}
+
+/* ---------------- custom ticket grading (offline, reuses evaluateReply) ---------------- */
+function scoreCustomTicket(){
+  const emailText = document.getElementById('customEmail').value.trim();
+  const tone = document.getElementById('customTone').value;
+  const checklistRaw = document.getElementById('customChecklist').value.trim();
+  const reply = document.getElementById('customReply').value.trim();
+  const out = document.getElementById('customResult');
+
+  if(!emailText || !reply){
+    out.innerHTML = '<div class="placeholder">Fill in at least the customer email and the candidate reply.</div>';
+    return;
+  }
+  const checklist = checklistRaw ? checklistRaw.split('\n').map(s=>s.trim()).filter(Boolean) : [];
+  if(checklist.length === 0){
+    out.innerHTML = '<div class="placeholder">Add at least one checklist line so correctness/completeness can be measured — otherwise those two dimensions can\'t be scored meaningfully.</div>';
+    return;
+  }
+
+  const fakeRecord = {customer_email: emailText, evaluation_checklist: checklist, tone: tone};
+  const sc = evaluateReply(reply, fakeRecord);
+
+  let html = `<div class="finalscore"><span class="n">${sc.composite}</span>/100
+    <span class="pass-pill ${sc.passed?'pass':'fail'}">${sc.passed?'PASSED':'BELOW THRESHOLD'}</span></div>`;
+  html += `<div class="grid6" style="margin-top:10px;">
+    ${metricBar('Correctness', sc.scores.correctness)}
+    ${metricBar('Completeness', sc.scores.completeness)}
+    ${metricBar('Hallucination-free', sc.scores.hallucination)}
+    ${metricBar('Empathy', sc.scores.empathy)}
+    ${metricBar('Tone', sc.scores.tone)}
+    ${metricBar('Grammar', sc.scores.grammar)}
+  </div>`;
+  if(sc.missing.length) html += `<div class="feedback"><b>Missing checklist items:</b> ${sc.missing.join('; ')}</div>`;
+  if(sc.hallucinated.length) html += `<div class="feedback">⚠ <b>Possible hallucinated entities</b> (numbers/order IDs in the reply not found in the email or checklist): ${sc.hallucinated.join(', ')}</div>`;
+  if(!sc.passed) html += `<div class="feedback"><b>Suggested fix (same feedback the improve-loop would use):</b><br>${feedbackFromScorecard(sc).replace(/\n/g,'<br>')}</div>`;
+  out.innerHTML = html;
+}
+
+renderStages(0);
+renderQueue();
+renderDesk();
+</script>
+</body>
+</html>
