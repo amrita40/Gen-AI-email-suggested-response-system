@@ -15,7 +15,7 @@ Customer Email
 Intent Detection  ---------------------  TF-IDF + Linear SVM, trained on our own dataset
       |
       v
-LLM Response Generation  --------------  Claude (live) or a corruption-based mock (offline)
+LLM Response Generation  --------------  
       |
       v
 Quality Evaluation  -------------------  6 dimensions, mostly deterministic
