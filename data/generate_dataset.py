@@ -1,27 +1,3 @@
-"""
-generate_dataset.py
---------------------
-Builds a labeled customer-support email dataset for training/evaluating
-the suggested-reply system.
-
-Each record has:
-  - email_id
-  - category            (top-level intent bucket)
-  - intent              (finer-grained intent tag)
-  - tone                (neutral / frustrated / polite) - customer's tone
-  - customer_email      (subject + body)
-  - gold_response       (hand-authored-style ideal reply, template driven)
-  - evaluation_checklist (list of criteria a good reply must satisfy -
-                           used by the evaluator as ground truth)
-
-Design choice: rather than hand-writing 450+ unique emails one by one,
-we author a smaller set of *templates per category* (which encode the
-real variance support teams see) and programmatically fill them with
-randomized entities (names, order IDs, amounts, products, delays).
-This is the same approach used to bootstrap eval sets in production:
-it's fast, reproducible (seeded), and every record still carries a
-checklist a human could audit. Total size is tunable via N_PER_TEMPLATE.
-"""
 
 import json
 import random
