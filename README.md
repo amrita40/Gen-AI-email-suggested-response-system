@@ -50,7 +50,7 @@ data/
   support_emails_dataset.jsonl
 src/
   intent_detector.py         # TF-IDF + LinearSVC, trained on the dataset above
-  response_generator.py      # live (Claude API) or mock (offline test harness) generation
+  response_generator.py      # mock (offline test harness) generation
   evaluator.py                # the 6-dimension scorer + improve-loop feedback
   pipeline.py                  # wires the above into the end-to-end workflow, writes a report
 demo/
