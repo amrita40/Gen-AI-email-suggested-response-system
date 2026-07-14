@@ -54,22 +54,8 @@ Run it:
 ```
 python3 data/generate_dataset.py          # regenerate the dataset (optional, already committed)
 python3 src/pipeline.py --n 100 --mode mock   # offline, no API key needed
-python3 src/pipeline.py --n 100 --mode live   # real Claude calls, needs ANTHROPIC_API_KEY
-```
 
-**Running `demo/live_pipeline_demo.html` standalone:** the file calls the Anthropic API directly
-from the browser. That only works out of the box when it's rendered inside Claude.ai's own
-artifact viewer, which proxies and authenticates the request for you. Open it as a plain
-downloaded file and a browser can't reach `api.anthropic.com` directly (no CORS allowance, no
-API key attached) — you'll see `Failed to fetch`. To run it standalone:
 ```
-export ANTHROPIC_API_KEY=sk-ant-...
-python3 demo/proxy_server.py       # stdlib only, no install needed
-```
-then open `live_pipeline_demo.html` in your browser — it's already pointed at
-`http://localhost:8787/v1/messages`, which the proxy forwards to the real API with your key
-attached. Or skip the HTML entirely and just run `src/pipeline.py --mode live`, which needs no
-proxy at all.
 
 ## The dataset
 
