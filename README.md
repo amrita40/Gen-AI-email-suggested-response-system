@@ -33,6 +33,17 @@ Quality Score  (0-100, weighted)
                                 Final Suggested Reply
 ```
 
+## Screenshots
+<img src="https://github.com/amrita40/Gen-AI-email-suggested-response-system/blob/main/Screenshot%202026-07-14%20235805.png
+" width="900">
+
+<img src="https://github.com/amrita40/Gen-AI-email-suggested-response-system/blob/main/Screenshot%202026-07-14%20235817.png
+" width="900">
+
+<img src="https://github.com/amrita40/Gen-AI-email-suggested-response-system/blob/main/Screenshot%202026-07-14%20235832.png
+" width="900">
+
+
 ## Repo layout
 
 ```
